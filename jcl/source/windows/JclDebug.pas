@@ -1091,6 +1091,8 @@ const
 
 implementation
 
+{$RANGECHECKS OFF} // DWORD VA values in MAP scanner exceed $7FFFFFFF on 64-bit, causing false range errors
+
 uses
   {$IFDEF HAS_UNITSCOPE}
   System.RTLConsts,
@@ -3919,7 +3921,7 @@ end;
 
 function TJclDebugInfoSource.VAFromAddr(const Addr: Pointer): DWORD;
 begin
-  Result := DWORD(TJclAddr(Addr) - TJclAddr(FModule) - ModuleCodeOffset);
+  Result := DWORD(TJclAddr(Addr) - TJclAddr(FModule) - ModuleCodeOffset) and $FFFFFFFF;
 end;
 
 function TJclDebugInfoSource.AddrFromVA(const VA: DWORD): Pointer;
@@ -5899,7 +5901,8 @@ var
   StackFrame: PStackFrame;
   StackInfo: TStackInfo;
 begin
-  Capacity := 32; // reduce ReallocMem calls, must be > 1 because the caller's EIP register is already in the list
+  if inherited Count < 32 then // 64-bit: CaptureBackTrace may have already added items
+    Capacity := 32; // reduce ReallocMem calls, must be > 1 because the caller's EIP register is already in the list
 
   // Start at level 0
   StackInfo.Level := 0;
@@ -6402,7 +6405,8 @@ var
   LocalVarStackOffset, ParamStackOffset: Integer;
   ModuleEndAddr: TJclAddr;
 begin
-  Capacity := 32; // reduce ReallocMem calls, must be > 1 because the caller's EIP register is already in the list
+  if inherited Count < 32 then // 64-bit: CaptureBackTrace may have already added items
+    Capacity := 32; // reduce ReallocMem calls, must be > 1 because the caller's EIP register is already in the list
 
   if DelayedTrace then
   begin
